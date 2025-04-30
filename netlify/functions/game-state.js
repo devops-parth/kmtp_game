@@ -235,13 +235,25 @@ function handleGuess(data) {
 }
 
 function handleNextRound() {
-    gameState.currentRound++;
-    
-    if (gameState.currentRound <= 10) {
-        initializeRound();
+    // Only increment round if we're not at the end
+    if (gameState.currentRound < 10) {
+        gameState.currentRound++;
     } else {
         gameState.phase = 'game-over';
+        return {
+            statusCode: 200,
+            body: JSON.stringify({ gameState })
+        };
     }
+
+    // Reset tiles but keep players and scores
+    const shuffledRoles = [...roles].sort(() => Math.random() - 0.5);
+    gameState.tiles = shuffledRoles.map(role => ({
+        role,
+        selectedBy: null
+    }));
+    
+    gameState.phase = 'selection';
     
     return {
         statusCode: 200,

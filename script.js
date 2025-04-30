@@ -334,7 +334,8 @@ function updateResultsPhase() {
     });
     
     setTimeout(() => {
-        if (gameState.currentRound >= 10) {
+        // Don't automatically proceed to next round if game is over
+        if (gameState.phase === 'game-over') {
             endGame();
         } else {
             nextRound();
@@ -465,7 +466,13 @@ async function nextRound() {
         }
         
         gameState = data.gameState;
-        updateGameUI();
+        
+        // Only update UI if we're not in game-over state
+        if (gameState.phase !== 'game-over') {
+            updateGameUI();
+        } else {
+            endGame();
+        }
     } catch (error) {
         console.error('Error moving to next round:', error);
         alert('Failed to start next round. Please try again.');

@@ -10,35 +10,30 @@ exports.handler = async function(event, context) {
     const data = JSON.parse(event.body || '{}');
     
     if (data.action === 'hard-reset') {
-        // Complete reset - clear all players
+        // Complete reset
         gameState = {
             players: [],
-            currentRound: 1,
-            phase: 'selection',
-            tiles: [],
-            scores: []
-        };
-    } else if (data.action === 'soft-reset') {
-        // Soft reset - keep players but reset game state
-        gameState = {
-            players: gameState.players.map(player => ({
-                ...player,
-                score: 0
-            })),
             currentRound: 1,
             phase: 'selection',
             tiles: [],
             scores: []
         };
     } else {
-        // Default reset (backwards compatible)
+        // Soft reset - maintain players and scores
         gameState = {
-            players: [],
+            players: gameState.players || [],
             currentRound: 1,
             phase: 'selection',
             tiles: [],
-            scores: []
+            scores: gameState.players ? gameState.players.map(p => p.score) : []
         };
+        
+        // Reattach scores to players
+        if (gameState.players.length > 0) {
+            gameState.players.forEach((player, index) => {
+                player.score = gameState.scores[index] || 0;
+            });
+        }
     }
     
     return {
