@@ -61,7 +61,15 @@ async function joinGame() {
         const data = await response.json();
         
         if (data.error) {
-            alert(data.error);
+            if (data.error.includes('full')) {
+                // Offer to reset the game
+                if (confirm('Game is full. Would you like to reset it?')) {
+                    await resetGame();
+                    await joinGame(); // Retry joining
+                }
+            } else {
+                alert(data.error);
+            }
             joinButton.disabled = false;
             return;
         }
@@ -112,6 +120,7 @@ async function pollGameState() {
         
         if (data.error) {
             console.error(data.error);
+            setTimeout(pollGameState, 2000);
             return;
         }
         
@@ -135,11 +144,12 @@ async function pollGameState() {
 function startGame() {
     nameEntryScreen.classList.remove('active');
     gameScreen.classList.add('active');
-    
     updateGameUI();
 }
 
 function updateGameUI() {
+    if (!gameState) return;
+    
     // Update round number
     roundNumber.textContent = gameState.currentRound;
     
@@ -155,17 +165,17 @@ function updateGameUI() {
         }
     });
     
-    // Update tiles
+    // Update tiles based on game phase
     if (gameState.phase === 'selection') {
         tiles.forEach((tile, index) => {
             tile.textContent = '';
             tile.classList.remove('selected', 'revealed', 'disabled');
             
             // Check if this tile is already selected by someone
-            const selectedBy = gameState.tiles[index].selectedBy;
-            if (selectedBy !== null) {
+            const selectedBy = gameState.tiles[index]?.selectedBy;
+            if (selectedBy !== null && selectedBy !== undefined) {
                 tile.classList.add('selected');
-                tile.textContent = gameState.players[selectedBy].name;
+                tile.textContent = gameState.players[selectedBy]?.name || '';
                 tile.classList.add('disabled');
             }
             
@@ -205,7 +215,7 @@ function updateGameUI() {
         
         // Show results for a few seconds before next round
         setTimeout(async () => {
-            if (gameState.currentRound > 10) {
+            if (gameState.currentRound >= 10) {
                 endGame();
             } else {
                 await nextRound();
@@ -222,9 +232,13 @@ function showPoliceGuess() {
     const ministerIndex = gameState.tiles.findIndex(t => t.role === 'MINISTER');
     const thiefIndex = gameState.tiles.findIndex(t => t.role === 'THIEF');
     
+    if (ministerIndex === -1 || thiefIndex === -1) return;
+    
     // Get the players who selected these tiles
     const ministerPlayer = gameState.players[gameState.tiles[ministerIndex].selectedBy];
     const thiefPlayer = gameState.players[gameState.tiles[thiefIndex].selectedBy];
+    
+    if (!ministerPlayer || !thiefPlayer) return;
     
     // Create guess options (random order)
     const options = [
@@ -344,6 +358,8 @@ async function nextRound() {
 }
 
 function endGame() {
+    if (!gameState || !gameState.players) return;
+    
     // Determine winner
     let maxScore = -1;
     let winner = '';
@@ -352,6 +368,8 @@ function endGame() {
         if (player.score > maxScore) {
             maxScore = player.score;
             winner = player.name;
+        } else if (player.score === maxScore) {
+            winner += ` and ${player.name}`;
         }
     });
     
@@ -361,8 +379,9 @@ function endGame() {
 
 async function resetGame() {
     try {
-        // Call reset function
         isWaitingForPlayers = false;
+        
+        // Call reset function
         await fetch('/.netlify/functions/reset-game', {
             method: 'POST'
         });
@@ -390,3 +409,31 @@ async function resetGame() {
         alert('Failed to reset game. Please try again.');
     }
 }
+
+// Initialize
+async function init() {
+    try {
+        // Check if game is already in progress
+        const response = await fetch('/.netlify/functions/game-state');
+        const data = await response.json();
+        
+        if (!data.error && data.gameState) {
+            gameState = data.gameState;
+            
+            // Check if we're already in this game
+            if (playerId !== null && gameState.players.some(p => p.id === playerId)) {
+                if (gameState.players.length === 4) {
+                    startGame();
+                } else {
+                    isWaitingForPlayers = true;
+                    pollGameState();
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Initialization error:', error);
+    }
+}
+
+// Start initialization
+init();

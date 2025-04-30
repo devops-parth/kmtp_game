@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KMPT Game</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div id="app">
         <div id="name-entry" class="screen active">
@@ -18,13 +20,26 @@
                 <div id="current-players"></div>
             </div>
         </div>
+        <!-- Add this to your waiting screen -->
+        <div id="waiting-screen" class="screen">
+            <h2>Game Lobby</h2>
+            <div class="player-list">
+                <h3>Joined Players (<span id="player-count">1</span>/4)</h3>
+                <ul id="player-names"></ul>
+            </div>
+            <div class="status-message">
+                <p id="waiting-text">Waiting for more players to join...</p>
+                <div class="loader"></div>
+            </div>
+            <button id="force-start" class="hidden">Force Start (Admin)</button>
+        </div>
 
         <div id="game-screen" class="screen">
             <div class="header">
                 <h2>Round: <span id="round-number">1</span>/10</h2>
                 <button id="reset-game" class="reset-btn">X</button>
             </div>
-            
+
             <div id="game-board">
                 <div class="tile-row">
                     <div class="tile" data-index="0"></div>
@@ -66,4 +81,5 @@
     </div>
     <script src="script.js"></script>
 </body>
+
 </html>

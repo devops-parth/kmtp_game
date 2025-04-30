@@ -2,16 +2,33 @@
 let gameState = {
     players: [],
     currentRound: 1,
-    phase: 'selection', // 'selection', 'reveal', 'results'
+    phase: 'selection',
     tiles: [],
-    scores: []
+    scores: [],
+    lastReset: Date.now()
 };
 
 const roles = ['KING', 'MINISTER', 'POLICE', 'THIEF'];
 
 exports.handler = async function(event, context) {
-    const data = JSON.parse(event.body);
-    
+    // Parse the incoming request
+    let data = {};
+    try {
+        if (event.body) {
+            data = JSON.parse(event.body);
+        }
+    } catch (error) {
+        return {
+            statusCode: 400,
+            body: JSON.stringify({ error: 'Invalid request body' })
+        };
+    }
+
+    // Automatic reset if no activity for 5 minutes
+    if (Date.now() - gameState.lastReset > 300000) {
+        resetGameState();
+    }
+
     try {
         switch (data.action) {
             case 'join':
@@ -22,6 +39,14 @@ exports.handler = async function(event, context) {
                 return handleGuess(data);
             case 'next-round':
                 return handleNextRound();
+            case 'force-start':
+                return handleForceStart();
+            case 'reset':
+                resetGameState();
+                return {
+                    statusCode: 200,
+                    body: JSON.stringify({ success: true, gameState })
+                };
             default:
                 return {
                     statusCode: 200,
@@ -31,10 +56,25 @@ exports.handler = async function(event, context) {
     } catch (error) {
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: error.message })
+            body: JSON.stringify({ 
+                error: error.message,
+                stack: error.stack 
+            })
         };
     }
 };
+
+function resetGameState() {
+    gameState = {
+        players: [],
+        currentRound: 1,
+        phase: 'selection',
+        tiles: [],
+        scores: [],
+        lastReset: Date.now()
+    };
+}
+
 
 // Update the handleJoin function
 function handleJoin(data) {
@@ -205,3 +245,25 @@ function initializeRound() {
     
     gameState.phase = 'selection';
 }
+
+
+function handleForceStart() {
+    if (gameState.players.length < 2) {
+      return { error: 'Need at least 2 players to start' };
+    }
+    
+    // Fill remaining spots with bots if needed
+    while (gameState.players.length < 4) {
+      gameState.players.push({
+        id: gameState.players.length,
+        name: `Bot-${gameState.players.length + 1}`,
+        score: 0,
+        isBot: true
+      });
+    }
+    
+    gameState.phase = 'selection';
+    initializeRound();
+    
+    return { success: true, gameState };
+  }
