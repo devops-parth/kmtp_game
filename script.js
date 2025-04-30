@@ -507,5 +507,7 @@ async function init() {
     }
 }
 
+document.getElementById('admin-reset').addEventListener('click', resetGame);
+
 // Start initialization
 init();
