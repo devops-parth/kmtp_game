@@ -4,6 +4,7 @@ let playerName = '';
 let gameState = null;
 let currentSelection = null;
 let pollInterval = null;
+let isWaitingForPlayers = false;
 
 // DOM Elements
 const nameEntryScreen = document.getElementById('name-entry');
@@ -43,6 +44,7 @@ async function joinGame() {
     }
     
     playerName = name;
+    joinButton.disabled = true;
     
     try {
         const response = await fetch('/.netlify/functions/game-state', {
@@ -60,6 +62,7 @@ async function joinGame() {
         
         if (data.error) {
             alert(data.error);
+            joinButton.disabled = false;
             return;
         }
         
@@ -71,12 +74,13 @@ async function joinGame() {
         if (gameState.players.length === 4) {
             startGame();
         } else {
-            // Poll for game updates
-            pollInterval = setInterval(pollGameState, 2000);
+            isWaitingForPlayers = true;
+            pollGameState();
         }
     } catch (error) {
         console.error('Error joining game:', error);
         alert('Failed to join game. Please try again.');
+        joinButton.disabled = false;
     }
 }
 
@@ -88,11 +92,20 @@ function updateWaitingScreen() {
     gameState.players.forEach(player => {
         const playerDiv = document.createElement('div');
         playerDiv.textContent = player.name;
+        if (player.id === playerId) {
+            playerDiv.innerHTML += ' <strong>(You)</strong>';
+        }
         currentPlayersDiv.appendChild(playerDiv);
     });
+    
+    const remaining = 4 - gameState.players.length;
+    waitingMessage.querySelector('p').textContent = 
+        `Waiting for ${remaining} more player${remaining !== 1 ? 's' : ''}...`;
 }
 
 async function pollGameState() {
+    if (!isWaitingForPlayers) return;
+    
     try {
         const response = await fetch('/.netlify/functions/game-state');
         const data = await response.json();
@@ -103,22 +116,19 @@ async function pollGameState() {
         }
         
         gameState = data.gameState;
+        updateWaitingScreen();
         
-        // Update waiting screen
-        currentPlayersDiv.innerHTML = '';
-        gameState.players.forEach(player => {
-            const playerDiv = document.createElement('div');
-            playerDiv.textContent = player.name;
-            currentPlayersDiv.appendChild(playerDiv);
-        });
-        
-        // Check if game can start
         if (gameState.players.length === 4) {
-            clearInterval(pollInterval);
+            isWaitingForPlayers = false;
             startGame();
+        } else {
+            // Continue polling every 2 seconds
+            setTimeout(pollGameState, 2000);
         }
     } catch (error) {
         console.error('Error polling game state:', error);
+        // Retry after 2 seconds if there's an error
+        setTimeout(pollGameState, 2000);
     }
 }
 
@@ -352,6 +362,7 @@ function endGame() {
 async function resetGame() {
     try {
         // Call reset function
+        isWaitingForPlayers = false;
         await fetch('/.netlify/functions/reset-game', {
             method: 'POST'
         });

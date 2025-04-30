@@ -36,7 +36,16 @@ exports.handler = async function(event, context) {
     }
 };
 
+// Update the handleJoin function
 function handleJoin(data) {
+    // Check if game is already in progress
+    if (gameState.players.length > 0 && gameState.players.length < 4 && gameState.currentRound > 1) {
+        return {
+            statusCode: 400,
+            body: JSON.stringify({ error: 'Game is already in progress' })
+        };
+    }
+    
     // Check if game is already full
     if (gameState.players.length >= 4) {
         return {
@@ -63,6 +72,7 @@ function handleJoin(data) {
     
     // If this is the 4th player, initialize the game
     if (gameState.players.length === 4) {
+        gameState.currentRound = 1;
         initializeRound();
     }
     
