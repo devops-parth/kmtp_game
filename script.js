@@ -135,7 +135,7 @@ function pollGameState() {
             gameState = data.gameState;
             updateWaitingScreen();
             
-            if (gameState.players.length === 4) {
+            if (gameState.players.length === 4 && gameState.phase !== 'waiting') {
                 clearPolling();
                 startGame();
             }
@@ -164,6 +164,7 @@ function pollGameUpdates() {
         .then(data => {
             if (data.error) throw new Error(data.error);
             
+            // Only update if game state has changed
             if (JSON.stringify(gameState) !== JSON.stringify(data.gameState)) {
                 gameState = data.gameState;
                 updateGameUI();
@@ -255,11 +256,9 @@ function updateRevealPhase() {
         tile.classList.add('disabled');
     });
     
-    const isPolice = gameState.tiles.some(t => 
-        t.role === 'POLICE' && t.selectedBy === playerId
-    );
-    
-    if (isPolice) {
+    // Only show police guess for the actual police player
+    const policeTile = gameState.tiles.find(t => t.role === 'POLICE');
+    if (policeTile && policeTile.selectedBy === playerId) {
         showPoliceGuess();
     }
 }
