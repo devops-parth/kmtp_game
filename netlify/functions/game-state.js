@@ -41,6 +41,20 @@ exports.handler = async function(event, context) {
                 return handleNextRound();
             case 'force-start':
                 return handleForceStart();
+            case 'soft-reset':
+                return {
+                    statusCode: 200,
+                    body: JSON.stringify({
+                        success: true,
+                        gameState: {
+                            ...gameState,
+                            currentRound: 1,
+                            phase: 'selection',
+                            tiles: [],
+                            scores: []
+                        }
+                    })
+                };
             case 'reset':
                 resetGameState();
                 return {

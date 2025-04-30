@@ -7,17 +7,45 @@ let gameState = {
 };
 
 exports.handler = async function(event, context) {
-    // Reset the game state
-    gameState = {
-        players: [],
-        currentRound: 1,
-        phase: 'selection',
-        tiles: [],
-        scores: []
-    };
+    const data = JSON.parse(event.body || '{}');
+    
+    if (data.action === 'hard-reset') {
+        // Complete reset - clear all players
+        gameState = {
+            players: [],
+            currentRound: 1,
+            phase: 'selection',
+            tiles: [],
+            scores: []
+        };
+    } else if (data.action === 'soft-reset') {
+        // Soft reset - keep players but reset game state
+        gameState = {
+            players: gameState.players.map(player => ({
+                ...player,
+                score: 0
+            })),
+            currentRound: 1,
+            phase: 'selection',
+            tiles: [],
+            scores: []
+        };
+    } else {
+        // Default reset (backwards compatible)
+        gameState = {
+            players: [],
+            currentRound: 1,
+            phase: 'selection',
+            tiles: [],
+            scores: []
+        };
+    }
     
     return {
         statusCode: 200,
-        body: JSON.stringify({ success: true })
+        body: JSON.stringify({ 
+            success: true,
+            gameState 
+        })
     };
 };

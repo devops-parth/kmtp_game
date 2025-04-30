@@ -27,11 +27,13 @@ const gameOverDiv = document.getElementById('game-over');
 const winnerNameSpan = document.getElementById('winner-name');
 const playAgainButton = document.getElementById('play-again');
 const resetButton = document.getElementById('reset-game');
+const adminResetBtn = document.getElementById('admin-reset');
 
 // Event Listeners
 joinButton.addEventListener('click', joinGame);
-playAgainButton.addEventListener('click', resetGame);
-resetButton.addEventListener('click', resetGame);
+playAgainButton.addEventListener('click', () => handlePlayAgain(false));
+resetButton.addEventListener('click', () => handleFullReset());
+adminResetBtn.addEventListener('click', () => handlePlayAgain(true));
 submitGuessButton.addEventListener('click', submitGuess);
 forceStartBtn.addEventListener('click', forceStartGame);
 
@@ -81,6 +83,68 @@ async function joinGame() {
         handleJoinError(error.message);
     }
 }
+
+async function handlePlayAgain(isAdmin) {
+    if (isAdmin && gameState.players[0]?.id !== playerId) {
+        alert('Only the first player can reset the game for everyone');
+        return;
+    }
+    
+    try {
+        await fetch('/.netlify/functions/reset-game', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'soft-reset'
+            })
+        });
+        
+        // Refresh game state
+        const response = await fetch('/.netlify/functions/game-state');
+        const data = await response.json();
+        
+        if (data.error) throw new Error(data.error);
+        
+        gameState = data.gameState;
+        gameOverDiv.classList.add('hidden');
+        
+        if (gameState.players.length === 4) {
+            startGame();
+        } else {
+            showWaitingScreen();
+        }
+    } catch (error) {
+        console.error('Error restarting game:', error);
+        alert('Failed to restart game. Please try again.');
+    }
+}
+
+async function handleFullReset() {
+    if (!confirm('This will completely reset the game for ALL players. Continue?')) {
+        return;
+    }
+    
+    try {
+        await fetch('/.netlify/functions/reset-game', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'hard-reset'
+            })
+        });
+        
+        resetLocalState();
+        resetUI();
+    } catch (error) {
+        console.error('Error resetting game:', error);
+        alert('Failed to reset game. Please try again.');
+    }
+}
+
 
 function handleJoinError(error) {
     if (error.includes('full')) {
@@ -425,6 +489,12 @@ function endGame() {
     
     winnerNameSpan.textContent = winners.join(' and ');
     gameOverDiv.classList.remove('hidden');
+    
+    // Auto-reset after 30 seconds
+    setTimeout(() => {
+        if (gameOverDiv.classList.contains('hidden')) return;
+        handlePlayAgain(true);
+    }, 30000);
 }
 
 async function resetGame() {
@@ -506,8 +576,6 @@ async function init() {
         console.error('Initialization error:', error);
     }
 }
-
-document.getElementById('admin-reset').addEventListener('click', resetGame);
 
 // Start initialization
 init();
